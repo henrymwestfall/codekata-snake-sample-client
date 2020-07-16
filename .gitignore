@@ -1,0 +1,13 @@
+.idea
+.vscode
+.classpath
+.project
+.settings
+
+# hide server stuff
+/build/
+/.gradle
+/bin
+gradle-app.settings
+.gradletasknamecache
+!gradle-wrapper.jar
