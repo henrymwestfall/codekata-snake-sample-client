@@ -4,8 +4,6 @@ A sample client in kotlin for the [codekata-snake](https://github.com/fairviewro
 
 Your code should go in `src/main/kotlin/app/AI.kt`.
 
-Utility classes for representing the state of the game are in `src/main/kotlin/app/game.kt`. You're welcome to extend or change them. 
-
 # Running
 Run your client with `./gradlew run --args="url keys..."`.
 
