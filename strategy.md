@@ -1,17 +1,12 @@
-**Feeding**
+# Overview
 
-Move towards the food if we are the closest.
-If we are not the closest, move towards
-the spawn point of the next food.
+If we are the closest to the food, move
+towards it. Otherwise, maximize the number
+of possible spawn tiles that are closest to
+us.
 
-**Attacking**
-
-If we are the longest, try to circle the
-food (leaving a 1 square opening) to bait
-other players and to allow them to kill each
-other off.
-
-**Caution**
-
-Never enter a one-way chamber. Chambers like
-this have fewer squares than our body.
+# Maximizing Spawn Tiles
+For each of the 3 possible directions, check
+what percentage of possible spawn locations
+we are the closest to (A* path length, not 
+Manhattan Distance). Choose the move that maximizes this.

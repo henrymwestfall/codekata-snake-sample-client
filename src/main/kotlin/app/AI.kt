@@ -51,7 +51,7 @@ class AI() {
         // location of our head
         val ourHead = heads[0]
         // location of enemy heads
-        val enemyHeads = heads.filterIndexed { i, _ -> i != 0}
+        val enemyHeads = heads.filterIndexed { i, _ -> i != 0 }
         // living snakes
         val livingHeads = heads.filterIndexed { index, head ->
             head != lastHeadPositions[index]
@@ -66,16 +66,17 @@ class AI() {
         }
 
         // create walls from cellAges and heads
-        val walls = cellAges.toMutableMap()
+        val wallMap = cellAges.toMutableMap()
         for (head in enemyHeads) {
             for (x in 0 until 25) {
                 for (y in 0 until 25) {
                     if (manhattanDistance(head, Pair(x, y)) == 1) {
-                        walls[Pair(x, y)] = 2
+                        wallMap[Pair(x, y)] = 2
                     }
                 }
             }
         }
+        val walls = getCloseWalls(ourHead, wallMap)
 
         val shortestPaths = heads.map { dijkstra(it, food, walls) }
         val shortestPath = shortestPaths[0]
@@ -90,60 +91,39 @@ class AI() {
             }
         }
 
-        val nextFoodPos = getNextFoodPos(board, livingHeads)
-
-        val shortestPathsToNextFood = heads.map { dijkstra(it, nextFoodPos, walls) }
-        val shortestPathToNextFood = shortestPaths[0]
-        var closestPlayerToNextFood = 0
-        var closestDistanceToNextFood = bigNumber
-        shortestPathsToNextFood.forEachIndexed { index, path ->
-            if (path != null) {
-                if (path.size < closestDistanceToNextFood && heads[index] in livingHeads) {
-                    closestDistanceToNextFood = path.size
-                    closestPlayerToNextFood = index
-                }
-            }
-        }
-
-        val pathBetweenFoods = dijkstra(food, nextFoodPos, walls)
-        var midwayPoint: Pair<Int, Int>? = null
-        var pathToMidway: List<Pair<Int, Int>>? = null
-        if (pathBetweenFoods != null) {
-            midwayPoint = pathBetweenFoods[pathBetweenFoods.size / 2]
-            pathToMidway = dijkstra(ourHead, midwayPoint, walls)
-        }
-
-        // we are closest to existing food
+        // we are the closest player, go towards food
         if (closestPlayer == 0 && shortestPath != null) {
-            println("Moving towards current food.")
             return getDirectionTo(ourHead, shortestPath[0])
         }
 
-        // we are closest to next food
-        if (closestPlayerToNextFood == 0 && shortestPathToNextFood != null) {
-            println("Moving towards next food.")
-            return getDirectionTo(ourHead, shortestPathToNextFood[0])
-        }
-
-        // we are not closest to either, go to midway
-        if (pathToMidway != null) {
-            println("Moving towards midway point.")
-            return getDirectionTo(ourHead, pathToMidway[0])
-        }
-
-        // all else fails, move randomly
-        println("Moving randomly.")
-
-        /* Basic AI (REPLACE THIS)
-        don't go off the board, don't run into other snakes. otherwise, move randomly */
         val moves = listOf(0, 1, 2, 3).filter { move ->
             val newHead = applyMove(ourHead, move)
-
             posOnBoard(newHead) && cellFree(newHead, board)
         }
 
-        return if(moves.isEmpty()) 0
-        else moves.random()
+        var move = if (moves.isEmpty()) 0 else moves.random()
+
+        // do the move that puts us near the most spawn positions
+        var bestPercentage = 0.0
+        for (possibleMove in moves) {
+            val newHead = applyMove(ourHead, possibleMove)
+            val newHeads = mutableListOf(ourHead)
+            newHeads.addAll(enemyHeads)
+            val possibleFoodSpawns = getPossibleFoodSpawns(board, newHeads)
+            var closestCount = 0
+            for (pfs in possibleFoodSpawns) {
+                val closestHead = getClosestTo(walls, newHeads, pfs)
+                if (closestHead == newHead) ++closestCount
+            }
+            val percentage = closestCount.toDouble() / possibleFoodSpawns.size.toDouble()
+
+            if (percentage > bestPercentage) {
+                bestPercentage = percentage
+                move = possibleMove
+            }
+        }
+
+        return move
     }
 
     /*** Helper methods ***/

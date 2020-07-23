@@ -4,6 +4,8 @@ import kotlin.math.absoluteValue
 
 
 const val bigNumber = 100000
+var lastWalls = setOf<Pair<Int, Int>>()
+var currentGraph = mutableMapOf<Pair<Int, Int>, MutableSet<Pair<Int, Int>>>()
 
 fun manhattanDistance(a: Pair<Int, Int>, b: Pair<Int, Int>): Int {
     /** A function to find the manhattan distance between two points a and b **/
@@ -66,6 +68,26 @@ fun dijkstra(start: Pair<Int, Int>,
     return dijkstraAlgorithm(start, end, graph)
 }
 
+fun dijkstra(start: Pair<Int, Int>,
+             end: Pair<Int, Int>,
+             walls: Set<Pair<Int, Int>>,
+             gridSize: Int = 25
+): List<Pair<Int, Int>>? {
+    /** Implements dijkstraAlgorithm.
+     * walls: close walls **/
+
+    // create a graph
+    val allPoints = getGridPoints(gridSize)
+    if (walls != lastWalls) {
+        currentGraph = createGraph(allPoints, walls)
+        lastWalls = walls.toSet()
+    }
+
+    return dijkstraAlgorithm(start, end, currentGraph)
+}
+
+
+
 fun getDirectionTo(src: Pair<Int, Int>, target: Pair<Int, Int>): Int {
     val diff = Pair(target.first - src.first, target.second - src.second)
     when (diff.first) {
@@ -117,9 +139,12 @@ fun dijkstraAlgorithm(src: Pair<Int, Int>,
         visitedSet.add(current)
 
         var minDist = bigNumber
+        var minH = bigNumber
         for (v in vertices) {
-            if ((dist[v]!! < minDist) && (v !in visitedSet)) {
+            val h = manhattanDistance(v, target) // heuristic
+            if ((dist[v]!! + h < minDist + minH) && (v !in visitedSet)) {
                 minDist = dist[v]!!
+                minH = h
                 current = v
             }
         }
@@ -145,27 +170,41 @@ fun dijkstraAlgorithm(src: Pair<Int, Int>,
 
     return shortestSequence.reversed().toList()
 }
+fun getPossibleFoodSpawns(board: Array<Array<Int>>,
+                          livingHeads: List<Pair<Int, Int>>,
+                          boardSize: Int = 25): List<Pair<Int, Int>> {
 
-fun getNextFoodPos(board: Array<Array<Int>>, livingHeads: List<Pair<Int, Int>>): Pair<Int, Int> {
-    /* pick location with largest average distance away from any heads,
-     * that is also not occupied by a player */
-    var maxDist = 0
-    var newLoc = Pair(0, 0)
-    for(x in 0..24) {
-        for(y in 0..24) {
+    val validLocs = mutableListOf<Pair<Int, Int>>()
+    for (x in 0 until boardSize) {
+        for (y in 0 until boardSize) {
             val occupied = board[x][y] != -1
             if (occupied) continue
 
-            val dist = livingHeads.sumBy { head ->
-                (head.first - x).absoluteValue + (head.second - y).absoluteValue
+            val dists = livingHeads.map {
+                manhattanDistance(it, Pair(x, y))
             }
 
-            if (dist > maxDist) {
-                maxDist = dist
-                newLoc = Pair(x, y)
+            if ((dists.min() ?: bigNumber) < 10) continue
+
+            validLocs.add(Pair(x, y))
+        }
+    }
+
+    return validLocs.toList()
+}
+
+fun getClosestTo(walls: Set<Pair<Int, Int>>, points: List<Pair<Int, Int>>, target: Pair<Int, Int>): Pair<Int, Int> {
+    var closestIndex = 0
+    var closestDistance = bigNumber
+    points.forEachIndexed { index, pt ->
+        val path = dijkstra(pt, target, walls)
+        if (path != null) {
+            if (path.size < closestDistance) {
+                closestDistance = path.size
+                closestIndex = index
             }
         }
     }
 
-    return newLoc
+    return Pair(closestIndex, closestDistance)
 }
