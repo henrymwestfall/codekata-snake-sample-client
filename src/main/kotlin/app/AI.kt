@@ -12,6 +12,7 @@ class AI() {
      * heads are the locations of the head of each snake (index [0] = us, [1] = enemy1, [2] = enemy2, [3] = enemy3)
      */
     val cellAges = mutableMapOf<Pair<Int, Int>, Int>()
+    val deadCells = mutableSetOf<Pair<Int, Int>>()
     var lastHeadPositions = Array(4) { Pair(12, 12) }
 
     init {
@@ -37,6 +38,11 @@ class AI() {
 
     fun ageAllCells() {
         for (cell in cellAges.keys) {
+            if (cell in deadCells) {
+                cellAges[cell] = 100
+                continue
+            }
+
             val currentAge = cellAges[cell]?:0
             cellAges[cell] = maxOf(currentAge - 1, 0)
         }
@@ -56,6 +62,23 @@ class AI() {
         val livingHeads = heads.filterIndexed { index, head ->
             head != lastHeadPositions[index]
         }
+        val deadHeads = heads.filter { head ->
+            head !in livingHeads
+        }
+
+        val deadPlayers = mutableListOf<Int>()
+        for (dh in deadHeads) {
+            if (board[dh.first][dh.second] == heads.indexOf(dh)) {
+                deadPlayers.add(heads.indexOf(dh))
+            }
+        }
+
+        // update dead cells
+        board.forEachIndexed { x, row ->
+            row.forEachIndexed { y, cell ->
+                if (cell in deadPlayers) deadCells.add(Pair(x, y))
+            }
+        }
 
         lastHeadPositions = heads.toTypedArray()
 
@@ -65,22 +88,25 @@ class AI() {
             cellAges[head] = snakeLengths[index]
         }
 
+        val walls = getCloseWalls(ourHead, cellAges).toMutableSet()
+        val wallsWithoutCollisions = walls.toMutableSet()
+        val deathPlaces = mutableSetOf<Pair<Int, Int>>()
+
         // create walls from cellAges and heads
-        val wallMap = cellAges.toMutableMap()
         for (head in enemyHeads) {
             for (x in 0 until 25) {
                 for (y in 0 until 25) {
                     if (manhattanDistance(head, Pair(x, y)) == 1) {
-                        wallMap[Pair(x, y)] = 2
+                        walls.add(Pair(x, y))
+                        deathPlaces.add(Pair(x, y))
                     }
                 }
             }
         }
-        val walls = getCloseWalls(ourHead, wallMap)
 
-        val shortestPaths = heads.map { dijkstra(it, food, walls) }
+        val shortestPaths = heads.map { dijkstra(it, food, wallsWithoutCollisions) }
         val shortestPath = shortestPaths[0]
-        var closestPlayer = 0
+        var closestPlayer = 1
         var closestDistance = bigNumber
         shortestPaths.forEachIndexed { index, path ->
             if (path != null) {
@@ -96,6 +122,8 @@ class AI() {
             return getDirectionTo(ourHead, shortestPath[0])
         }
 
+        println("Moving towards next food spawns.")
+
         val moves = listOf(0, 1, 2, 3).filter { move ->
             val newHead = applyMove(ourHead, move)
             posOnBoard(newHead) && cellFree(newHead, board)
@@ -107,6 +135,11 @@ class AI() {
         var bestPercentage = 0.0
         for (possibleMove in moves) {
             val newHead = applyMove(ourHead, possibleMove)
+
+            if (newHead in deathPlaces || newHead in walls) {
+                continue
+            }
+
             val newHeads = mutableListOf(ourHead)
             newHeads.addAll(enemyHeads)
             val possibleFoodSpawns = getPossibleFoodSpawns(board, newHeads)
@@ -122,6 +155,8 @@ class AI() {
                 move = possibleMove
             }
         }
+
+        println(bestPercentage)
 
         return move
     }

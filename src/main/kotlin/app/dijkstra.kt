@@ -194,7 +194,7 @@ fun getPossibleFoodSpawns(board: Array<Array<Int>>,
 }
 
 fun getClosestTo(walls: Set<Pair<Int, Int>>, points: List<Pair<Int, Int>>, target: Pair<Int, Int>): Pair<Int, Int> {
-    var closestIndex = 0
+    var closestIndex = 1
     var closestDistance = bigNumber
     points.forEachIndexed { index, pt ->
         val path = dijkstra(pt, target, walls)
